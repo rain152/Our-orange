@@ -1,11 +1,11 @@
-/*************************************************************************//**
- *****************************************************************************
- * @file   forkexit.c
- * @brief
- * @author Forrest Y. Yu
- * @date   Tue May  6 00:37:15 2008
- *****************************************************************************
- *****************************************************************************/
+/*************************************************************************/ /**
+*****************************************************************************
+* @file   forkexit.c
+* @brief
+* @author Forrest Y. Yu
+* @date   Tue May  6 00:37:15 2008
+*****************************************************************************
+*****************************************************************************/
 
 #include "type.h"
 #include "stdio.h"
@@ -20,8 +20,7 @@
 #include "keyboard.h"
 #include "proto.h"
 
-
-PRIVATE void cleanup(struct proc * proc);
+PRIVATE void cleanup(struct proc *proc);
 
 /*****************************************************************************
  *                                do_fork
@@ -35,9 +34,9 @@ PUBLIC int do_fork()
 {
 	disable_int();
 	/* find a free slot in proc_table */
-	struct proc* p = proc_table;
+	struct proc *p = proc_table;
 	int i;
-	for (i = 0; i < NR_TASKS + NR_PROCS; i++,p++)
+	for (i = 0; i < NR_TASKS + NR_PROCS; i++, p++)
 		if (p->p_flags == FREE_SLOT)
 			break;
 
@@ -57,61 +56,59 @@ PUBLIC int do_fork()
 	sprintf(p->name, "%s_%d", proc_table[pid].name, child_pid);
 
 	/* duplicate the process: T, D & S */
-	struct descriptor * ppd;
+	struct descriptor *ppd;
 
 	/* Text segment */
 	ppd = &proc_table[pid].ldts[INDEX_LDT_C];
 	/* base of T-seg, in bytes */
-	int caller_T_base  = reassembly(ppd->base_high, 24,
-					ppd->base_mid,  16,
-					ppd->base_low);
+	int caller_T_base = reassembly(ppd->base_high, 24,
+								   ppd->base_mid, 16,
+								   ppd->base_low);
 	/* limit of T-seg, in 1 or 4096 bytes,
 	   depending on the G bit of descriptor */
 	int caller_T_limit = reassembly(0, 0,
-					(ppd->limit_high_attr2 & 0xF), 16,
-					ppd->limit_low);
+									(ppd->limit_high_attr2 & 0xF), 16,
+									ppd->limit_low);
 	/* size of T-seg, in bytes */
-	int caller_T_size  = ((caller_T_limit + 1) *
-			      ((ppd->limit_high_attr2 & (DA_LIMIT_4K >> 8)) ?
-			       4096 : 1));
+	int caller_T_size = ((caller_T_limit + 1) *
+						 ((ppd->limit_high_attr2 & (DA_LIMIT_4K >> 8)) ? 4096 : 1));
 
 	/* Data & Stack segments */
 	ppd = &proc_table[pid].ldts[INDEX_LDT_RW];
 	/* base of D&S-seg, in bytes */
-	int caller_D_S_base  = reassembly(ppd->base_high, 24,
-					  ppd->base_mid,  16,
-					  ppd->base_low);
+	int caller_D_S_base = reassembly(ppd->base_high, 24,
+									 ppd->base_mid, 16,
+									 ppd->base_low);
 	/* limit of D&S-seg, in 1 or 4096 bytes,
 	   depending on the G bit of descriptor */
 	int caller_D_S_limit = reassembly((ppd->limit_high_attr2 & 0xF), 16,
-					  0, 0,
-					  ppd->limit_low);
+									  0, 0,
+									  ppd->limit_low);
 	/* size of D&S-seg, in bytes */
-	int caller_D_S_size  = ((caller_T_limit + 1) *
-				((ppd->limit_high_attr2 & (DA_LIMIT_4K >> 8)) ?
-				 4096 : 1));
+	int caller_D_S_size = ((caller_T_limit + 1) *
+						   ((ppd->limit_high_attr2 & (DA_LIMIT_4K >> 8)) ? 4096 : 1));
 
 	/* we don't separate T, D & S segments, so we have: */
-	assert((caller_T_base  == caller_D_S_base ) &&
-	       (caller_T_limit == caller_D_S_limit) &&
-	       (caller_T_size  == caller_D_S_size ));
+	assert((caller_T_base == caller_D_S_base) &&
+		   (caller_T_limit == caller_D_S_limit) &&
+		   (caller_T_size == caller_D_S_size));
 
 	/* base of child proc, T, D & S segments share the same space,
 	   so we allocate memory just once */
 	int child_base = alloc_mem(child_pid, caller_T_size);
 
 	/* child is a copy of the parent */
-	phys_copy((void*)child_base, (void*)caller_T_base, caller_T_size);
+	phys_copy((void *)child_base, (void *)caller_T_base, caller_T_size);
 
 	/* child's LDT */
 	init_desc(&p->ldts[INDEX_LDT_C],
-		  child_base,
-		  (PROC_IMAGE_SIZE_DEFAULT - 1) >> LIMIT_4K_SHIFT,
-		  DA_LIMIT_4K | DA_32 | DA_C | PRIVILEGE_USER << 5);
+			  child_base,
+			  (PROC_IMAGE_SIZE_DEFAULT - 1) >> LIMIT_4K_SHIFT,
+			  DA_LIMIT_4K | DA_32 | DA_C | PRIVILEGE_USER << 5);
 	init_desc(&p->ldts[INDEX_LDT_RW],
-		  child_base,
-		  (PROC_IMAGE_SIZE_DEFAULT - 1) >> LIMIT_4K_SHIFT,
-		  DA_LIMIT_4K | DA_32 | DA_DRW | PRIVILEGE_USER << 5);
+			  child_base,
+			  (PROC_IMAGE_SIZE_DEFAULT - 1) >> LIMIT_4K_SHIFT,
+			  DA_LIMIT_4K | DA_32 | DA_DRW | PRIVILEGE_USER << 5);
 
 	/* tell FS, see fs_fork() */
 	MESSAGE msg2fs;
@@ -128,7 +125,12 @@ PUBLIC int do_fork()
 	m.RETVAL = 0;
 	m.PID = 0;
 	send_recv(SEND, child_pid, &m);
-    enable_int();
+
+	proc_table[child_pid].q = 0;
+	proc_table[child_pid].pos = queue_len[0];
+	proc_table[child_pid].time = queue_slice[0];
+	queue_len[0]++;
+	enable_int();
 	return 0;
 }
 
@@ -178,7 +180,16 @@ PUBLIC void do_exit(int status)
 	int i;
 	int pid = mm_msg.source; /* PID of caller */
 	int parent_pid = proc_table[pid].p_parent;
-	struct proc * p = &proc_table[pid];
+	struct proc *p = &proc_table[pid];
+
+	queue_len[proc_table[pid].q] -= 1;
+    proc_table[pid].q=-1;
+    struct proc *proc;
+    for (proc = &FIRST_PROC; proc <= &LAST_PROC; proc++)
+    {
+        if (proc->q==proc_table[pid].q && proc->pos>proc_table[pid].pos)
+            proc->pos-=1;
+    }
 
 	/* tell FS, see fs_exit() */
 	MESSAGE msg2fs;
@@ -190,20 +201,25 @@ PUBLIC void do_exit(int status)
 
 	p->exit_status = status;
 
-	if (proc_table[parent_pid].p_flags & WAITING) { /* parent is waiting */
+	if (proc_table[parent_pid].p_flags & WAITING)
+	{ /* parent is waiting */
 		proc_table[parent_pid].p_flags &= ~WAITING;
 		cleanup(&proc_table[pid]);
 	}
-	else { /* parent is not waiting */
+	else
+	{ /* parent is not waiting */
 		proc_table[pid].p_flags |= HANGING;
 	}
 
 	/* if the proc has any child, make INIT the new parent */
-	for (i = 0; i < NR_TASKS + NR_PROCS; i++) {
-		if (proc_table[i].p_parent == pid) { /* is a child */
+	for (i = 0; i < NR_TASKS + NR_PROCS; i++)
+	{
+		if (proc_table[i].p_parent == pid)
+		{ /* is a child */
 			proc_table[i].p_parent = INIT;
 			if ((proc_table[INIT].p_flags & WAITING) &&
-			    (proc_table[i].p_flags & HANGING)) {
+				(proc_table[i].p_flags & HANGING))
+			{
 				proc_table[INIT].p_flags &= ~WAITING;
 				cleanup(&proc_table[i]);
 			}
@@ -221,7 +237,7 @@ PUBLIC void do_exit(int status)
  *
  * @param proc  Process to clean up.
  *****************************************************************************/
-PRIVATE void cleanup(struct proc * proc)
+PRIVATE void cleanup(struct proc *proc)
 {
 	MESSAGE msg2parent;
 	msg2parent.type = SYSCALL_RET;
@@ -257,22 +273,27 @@ PUBLIC void do_wait()
 
 	int i;
 	int children = 0;
-	struct proc* p_proc = proc_table;
-	for (i = 0; i < NR_TASKS + NR_PROCS; i++,p_proc++) {
-		if (p_proc->p_parent == pid) {
+	struct proc *p_proc = proc_table;
+	for (i = 0; i < NR_TASKS + NR_PROCS; i++, p_proc++)
+	{
+		if (p_proc->p_parent == pid)
+		{
 			children++;
-			if (p_proc->p_flags & HANGING) {
+			if (p_proc->p_flags & HANGING)
+			{
 				cleanup(p_proc);
 				return;
 			}
 		}
 	}
 
-	if (children) {
+	if (children)
+	{
 		/* has children, but no child is HANGING */
 		proc_table[pid].p_flags |= WAITING;
 	}
-	else {
+	else
+	{
 		/* no child at all */
 		MESSAGE msg;
 		msg.type = SYSCALL_RET;

@@ -59,6 +59,12 @@ EXTERN	struct proc *		pcaller;
 EXTERN	struct inode *		root_inode;
 extern	struct dev_drv_map	dd_map[];
 
+EXTERN int num1;
+EXTERN int num2;
+EXTERN int num3;
+EXTERN int queue_slice[];
+EXTERN int queue_len[];
+
 /* for test only */
 extern	char *			logbuf;
 extern	const int		LOGBUF_SIZE;

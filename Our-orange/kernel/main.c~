@@ -45,12 +45,12 @@ PUBLIC int kernel_main()
 		if (i >= NR_TASKS + NR_NATIVE_PROCS)
 		{
 			p->p_flags = FREE_SLOT;
-			p->q = -1;
-			p->pos = -1;
-			p->time = 0;
 			continue;
 		}
-
+		p_proc->q = 0;
+		p_proc->pos = i;
+		p_proc->time = 10;
+		
 		if (i < NR_TASKS)
 		{ /* TASK */
 			t = task_table + i;
@@ -59,7 +59,6 @@ PUBLIC int kernel_main()
 			eflags = 0x1202; /* IF=1, IOPL=1, bit 2 is always 1 */
 			prio = 15;
 		}
-
 		else
 		{ /* USER PROC */
 			t = user_proc_table + (i - NR_TASKS);
@@ -68,10 +67,6 @@ PUBLIC int kernel_main()
 			eflags = 0x202; /* IF=1, bit 2 is always 1 */
 			prio = 5;
 		}
-
-		p->q = 0;
-		p->pos = i;
-		p->time = prio;
 
 		strcpy(p->name, t->name); /* name of the process */
 		p->p_parent = NO_TASK;

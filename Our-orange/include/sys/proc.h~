@@ -15,7 +15,7 @@ struct stackframe {	/* proc_ptr points here				↑ Low			*/
 	u32	esi;		/* ┣ pushed by save()				│			*/
 	u32	ebp;		/* ┃						│			*/
 	u32	kernel_esp;	/* <- 'popad' will ignore it			│			*/
-	u32	ebx;		/* ┃						↑栈从高地址往低地址增长*/
+	u32	ebx;		/* ┃						↑栈从高地址往低地址增长*/		
 	u32	edx;		/* ┃						│			*/
 	u32	ecx;		/* ┃						│			*/
 	u32	eax;		/* ┛						│			*/

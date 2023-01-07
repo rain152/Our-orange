@@ -83,6 +83,8 @@ PUBLIC int do_exec()
         }
     }
 
+	int t = 0;
+	int *pt = ptext[src];
 	/* overwrite the current proc image with the new one */
 	Elf32_Ehdr* elf_hdr = (Elf32_Ehdr*)(mmbuf);
 	for (i = 0; i < elf_hdr->e_phnum; i++) {
@@ -95,8 +97,18 @@ PUBLIC int do_exec()
 				  (void*)va2la(TASK_MM,
 						 mmbuf + prog_hdr->p_offset),
 				  prog_hdr->p_filesz);
+			if (prog_hdr->p_flags & PF_X) {
+				if (t == 0) {
+					// Can it has two executable segments?
+					pt[0] = prog_hdr->p_vaddr;
+					pt[1] = pt[0] + prog_hdr->p_memsz;
+				}				
+				t++;
+			}
 		}
 	}
+	printl("text cnt: %d pid: %d\n", t, src);
+	printl("ptext: 0x%x->0x%x\n", pt[0], pt[1]);
 
 	/* setup the arg stack */
 	int orig_stack_len = mm_msg.BUF_LEN;

@@ -49,7 +49,7 @@ PUBLIC void clock_handler(int irq)
 	}
 
 	schedule();
-
+	check_stack();
 }
 
 /*****************************************************************************

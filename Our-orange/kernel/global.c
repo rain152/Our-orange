@@ -23,6 +23,9 @@
 
 PUBLIC	struct proc proc_table[NR_TASKS + NR_PROCS];
 
+// use for dynamic measure
+PUBLIC int ptext[NR_TASKS + NR_PROCS][2];
+
 /* 注意下面的 TASK 的顺序要与 const.h 中对应 */
 PUBLIC	struct task	task_table[NR_TASKS] = {
 	/* entry        stack size        task name */

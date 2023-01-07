@@ -12,13 +12,18 @@ CFLAGS		= -I ../include/ -I ../include/sys -c -fno-builtin -fno-stack-protector 
 LDFLAGS		= -Ttext 0x1000
 DASMFLAGS	= -D
 LIB		= ../lib/orangescrt.a
-BIN		= echo pwd reprint calc mario ls inject
+BIN		= echo pwd reprint calc mario ls inject atk2dat atk2stk atkpf atkvspf selfchk
 
 # All Phony Targets
 .PHONY : everything final clean realclean disasm all install
 
 # Default starting position
-everything : $(BIN)
+everything : shellcode $(BIN)
+
+# ShellCode generate
+shellcode : poc_code.asm
+	$(ASM) poc_code.asm -o poc_code.bin
+	xxd -i poc_code.bin > poc_code.h
 
 install : all clean
 	cp ../kernel.bin ./ -v
@@ -82,3 +87,35 @@ inject.o: inject.c ../include/type.h ../include/stdio.h
 
 inject : inject.o start.o $(LIB)
 	$(LD) $(LDFLAGS) -o $@ $?
+
+atk2dat.o: atk2dat.c ../include/stdio.h poc_code.asm poc_code.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+atk2dat : atk2dat.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
+
+atk2stk.o: atk2stk.c ../include/stdio.h poc_code.asm poc_code.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+atk2stk : atk2stk.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
+
+atkpf.o: atkpf.c ../include/stdio.h poc_code.asm poc_code.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+atkpf : atkpf.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
+
+atkvspf.o: atkvspf.c ../include/stdio.h poc_code.asm poc_code.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+atkvspf : atkvspf.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
+
+selfchk.o: selfchk.c ../include/stdio.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+selfchk : selfchk.o start.o $(LIB)
+	$(LD) $(LDFLAGS) -o $@ $?
+
+

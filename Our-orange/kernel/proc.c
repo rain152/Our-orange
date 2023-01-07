@@ -585,3 +585,83 @@ PUBLIC void dump_msg(const char * title, MESSAGE* m)
 		);
 }
 
+/*****************************************************************************
+ *                              check_stack
+ *****************************************************************************/
+
+// #define SECURITY_SIZE 0x10000
+
+// check_addr: return 1 if unsafe
+int check_addr(u32 addr, int pid) {
+	if(addr < ptext[pid][0] || addr >= ptext[pid][1]) {
+		return 1;
+	}
+    // if(addr >= PROC_IMAGE_SIZE_DEFAULT - SECURITY_SIZE)
+    //     return 1;
+    return 0;
+}
+
+char __i_to_c(char i) {
+	return i > 9 ? i + 'A' - 10 : i + '0';
+}
+
+void __i_to_h(char *s, u32 x) {
+	for (int i = 0; i < 8; i++) {
+		int j = 7 - i;		
+		s[i] = __i_to_c(x >> (j * 4) & 0xF);
+	}
+}
+
+void __show_hex(u32 x) {
+	static char s[100];
+	s[0] = '0'; s[1] = 'x'; __i_to_h(s + 2, x); s[10] = '\n'; s[11] = 0;
+	disp_color_str(s, 0x0e);
+}
+
+void __show_warning(u32 addr, int pid, u32 ebp, int flag) {
+	out_byte(CRTC_ADDR_REG, START_ADDR_H);
+	out_byte(CRTC_DATA_REG, 0);
+	out_byte(CRTC_ADDR_REG, START_ADDR_L);
+	out_byte(CRTC_DATA_REG, 0);
+	if (!flag) disp_color_str("retaddr unsafe!\n", 0x0e);
+	else disp_color_str("eip unsafe!\n", 0x0e);
+	disp_color_str("retaddr: ", 0x0e); __show_hex(addr);
+	disp_color_str("ebp: ", 0x0e); __show_hex(ebp);
+	disp_color_str("pid: ", 0x0e); __show_hex(pid);	
+}
+
+#define MAIN_EBP PROC_IMAGE_SIZE_DEFAULT-PROC_ORIGIN_STACK-20
+#define GUESS_STACK 0xF0000
+
+PUBLIC int check_stack() {
+    static int calm = 0;
+    struct proc* pnow = p_proc_ready;
+    int pid = pnow - proc_table;
+    if (calm != 0) calm--;
+    if (pnow - &FIRST_PROC >= NR_TASKS + NR_NATIVE_PROCS && calm == 0) {
+        u32 ebp = pnow->regs.ebp;
+        // maybe no ebp here
+        if (ebp < GUESS_STACK) return 0;
+        // is main() ?
+        // eax ecx call pushl push
+        if (ebp == MAIN_EBP) ebp += 4;
+		ebp = (u32)va2la(proc2pid(pnow), (void *)ebp);
+        // 检查返回地址是否在范围内
+        u32 retaddr = *(u32 *)(ebp + 4);
+        if (check_addr(retaddr, pid)) {
+            calm = 50;
+            __show_warning(retaddr, pid, ebp, 0);
+            delay(200);
+            return 1;
+        }
+        // 检查当前位置是否在栈内
+        u32 eip = p_proc_ready->regs.eip;
+        if (check_addr(eip, pid)) {
+            calm = 50;
+            __show_warning(retaddr, pid, ebp, 1);
+            delay(200);
+            return 2;
+        }
+    }
+    return 0;
+}

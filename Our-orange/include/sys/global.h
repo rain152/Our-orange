@@ -42,6 +42,8 @@ extern  CONSOLE		console_table[];
 extern CHECKTABLE	check_table[];
 extern int			check_index;	// 标记check_table位置的指针
 
+extern int ptext[NR_TASKS + NR_PROCS][2]; // use for dynamic measure
+
 /* MM */
 EXTERN	MESSAGE			mm_msg;
 extern	u8 *			mmbuf;

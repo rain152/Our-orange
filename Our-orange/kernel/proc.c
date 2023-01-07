@@ -625,8 +625,8 @@ void __show_warning(u32 addr, int pid, u32 ebp, int flag) {
 	out_byte(CRTC_DATA_REG, 0);
 	if (!flag) disp_color_str("retaddr unsafe!\n", 0x0e);
 	else disp_color_str("eip unsafe!\n", 0x0e);
-	disp_color_str("retaddr: ", 0x0e); __show_hex(addr);
-	disp_color_str("ebp: ", 0x0e); __show_hex(ebp);
+	disp_color_str("ret/eip: ", 0x0e); __show_hex(addr);
+	disp_color_str("ebp(la): ", 0x0e); __show_hex(ebp);
 	disp_color_str("pid: ", 0x0e); __show_hex(pid);	
 }
 
@@ -641,24 +641,25 @@ PUBLIC int check_stack() {
     if (pnow - &FIRST_PROC >= NR_TASKS + NR_NATIVE_PROCS && calm == 0) {
         u32 ebp = pnow->regs.ebp;
         // maybe no ebp here
-        if (ebp < GUESS_STACK) return 0;
-        // is main() ?
-        // eax ecx call pushl push
-        if (ebp == MAIN_EBP) ebp += 4;
-		ebp = (u32)va2la(proc2pid(pnow), (void *)ebp);
-        // 检查返回地址是否在范围内
-        u32 retaddr = *(u32 *)(ebp + 4);
-        if (check_addr(retaddr, pid)) {
-            calm = 50;
-            __show_warning(retaddr, pid, ebp, 0);
-            delay(200);
-            return 1;
-        }
+        if (ebp >= GUESS_STACK) { 
+		// is main() ?
+		// eax ecx call pushl push
+		if (ebp == MAIN_EBP) ebp += 4;
+			ebp = (u32)va2la(proc2pid(pnow), (void *)ebp);
+		// 检查返回地址是否在范围内
+		u32 retaddr = *(u32 *)(ebp + 4);
+		if (check_addr(retaddr, pid)) {
+		    calm = 50;
+		    __show_warning(retaddr, pid, ebp, 0);
+		    delay(200);
+		    return 1;
+		}
+	}
         // 检查当前位置是否在栈内
         u32 eip = p_proc_ready->regs.eip;
         if (check_addr(eip, pid)) {
             calm = 50;
-            __show_warning(retaddr, pid, ebp, 1);
+            __show_warning(eip, pid, 0, 1); // no ebp and retaddr
             delay(200);
             return 2;
         }
